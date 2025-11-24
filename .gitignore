@@ -10,3 +10,4 @@ trimmed_sequences/
 # files to ignore
 .DS_Store
 manifest.tsv
+.Rhistory
