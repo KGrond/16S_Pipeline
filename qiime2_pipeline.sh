@@ -1,46 +1,83 @@
 #!/usr/bin/env bash
+
 # Exit immediately if a command exits with a non-zero status. This helps catch errors early.
 set -e
 
 # --- Configuration ---
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Input Directory (where the FASTQ files are located, same as FastQC script)
-INPUT_DIR="/Users/kgrond/Desktop/INBRE-DataScience/16S_pipeline/test_data/01_trimmed_sequences"
+INPUT_DIR="${SCRIPT_DIR}/trimmed_sequences"
 
 # Output Directory for DADA2 parameters from FastQC script
-PARAMS_DIR="/Users/kgrond/Desktop/INBRE-DataScience/16S_pipeline/fastqc_reports_trimmed"
+PARAMS_DIR="${SCRIPT_DIR}/fastqc_reports_trimmed"
 PARAMS_FILE="${PARAMS_DIR}/qiime2_trunc_params.txt"
 
 # Output Directory for all QIIME 2 artifacts
-OUTPUT_DIR="02_qiime2_artifacts"
+OUTPUT_DIR="${SCRIPT_DIR}/qiime2_analysis"
+
+# Directory where the classifier should be stored (relative to this script's location if not absolute)
+CLASSIFIER_DIR="${SCRIPT_DIR}"
+CLASSIFIER_NAME="silva-138-99-nb-classifier.qza"
+CLASSIFIER_PATH="${CLASSIFIER_DIR}/silva-138-99-nb-classifier.qza"
+CLASSIFIER_URL="https://data.qiime2.org/2022.2/common/silva-138-99-nb-classifier.qza" # Using a stable QIIME 2 release URL
 
 # --- 1. Conda Environment Setup and Activation ---
-CONDA_ENV="qiime2-amplicon-2025.7"
+CONDA_ENV="qiime2-2025.10"
 # Activate the environment (ALWAYS necessary to ensure PATH is set correctly)
 echo "Activating Conda environment: $CONDA_ENV"
-source activate $CONDA_ENV
-if [ $? -ne 0 ]; then
-    echo "ERROR: Could not activate Conda environment. Please check your Conda installation."
+# Check if conda is available and activate the environment
+if command -v conda &> /dev/null; then
+    CONDA_BASE=$(conda info --base)
+    if [ -f "${CONDA_BASE}/etc/profile.d/conda.sh" ]; then
+        source "${CONDA_BASE}/etc/profile.d/conda.sh"
+    fi
+    source activate $CONDA_ENV
+    
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Failed to activate Conda environment '${CONDA_ENV}'. Did you run installs.sh?"
+        exit 1
+    fi
+    echo "Environment activated."
+else
+    echo "ERROR: 'conda' command not found. Cannot proceed."
     exit 1
 fi
-echo "Environment activated."
 
-# Path to the pre-trained Naive Bayes classifier (e.g., SILVA or Greengenes)
-# !!! IMPORTANT: CHANGE THIS PATH to your downloaded classifier file (.qza) !!!
-CLASSIFIER_PATH="/Users/kgrond/Desktop/INBRE-DataScience/16S_pipeline/silva-138-99-nb-classifier.qza"
-
-# --- Conda Setup (Using the robust 'conda run' method) ---
-
-# Check if conda is available at all
-if ! command -v conda &> /dev/null
-then
-    echo "Error: 'conda' command not found. Exiting."
-    exit 1
-fi
 
 # Define the QIIME command prefix using 'conda run'.
 QIIME_COMMAND="conda run -n ${CONDA_ENV} qiime"
 echo "QIIME commands will be executed using: ${QIIME_COMMAND}"
 echo "Assuming Conda environment '${CONDA_ENV}' exists and is properly configured."
+
+# --- Classifier Download Check ---
+echo "--- Checking for Taxonomy Classifier ---"
+if [ ! -f "${CLASSIFIER_PATH}" ]; then
+    echo "❌ Classifier not found at ${CLASSIFIER_PATH}. Attempting to download..."
+    
+    mkdir -p "${CLASSIFIER_DIR}"
+    
+    # Use wget if available, otherwise use curl
+    if command -v wget &> /dev/null; then
+        echo "Using wget to download classifier..."
+        wget -O "${CLASSIFIER_PATH}" "${CLASSIFIER_URL}"
+    elif command -v curl &> /dev/null; then
+        echo "Using curl to download classifier..."
+        curl -L "${CLASSIFIER_URL}" -o "${CLASSIFIER_PATH}"
+    else
+        echo "FATAL ERROR: Neither wget nor curl is installed. Cannot download classifier."
+        echo "Please install one of these utilities or manually download the file from: ${CLASSIFIER_URL}"
+        exit 1
+    fi
+    
+    if [ $? -ne 0 ]; then
+        echo "❌ FATAL ERROR: Download failed. Check the URL and network connection."
+        exit 1
+    fi
+    echo "✅ Successfully downloaded classifier to ${CLASSIFIER_PATH}."
+else
+    echo "✅ Classifier found at ${CLASSIFIER_PATH}. Skipping download."
+fi
+
 
 # --- Parameter Extraction ---
 
@@ -95,7 +132,7 @@ echo "1. Importing paired-end FASTQ data using Manifest File..."
 run_qiime_step "${QZA_DEMUX}" \
   ${QIIME_COMMAND} tools import \
     --type 'SampleData[PairedEndSequencesWithQuality]' \
-    --input-path "/Users/kgrond/Desktop/INBRE-DataScience/16S_pipeline/manifest.tsv" \
+    --input-path "/Users/kgrond/Desktop/INBRE-DataScience/16S_pipeline/16S_pipeline_repo/manifest.tsv" \
     --output-path "${QZA_DEMUX}" \
     --input-format PairedEndFastqManifestPhred33V2
 
@@ -194,11 +231,8 @@ run_qiime_step "${QZA_ROOTED_TREE}" \
 # 6. Taxonomy Assignment
 echo "--- 6. Taxonomy Assignment ---"
 
-if [ ! -f "${CLASSIFIER_PATH}" ]; then
-    echo "Fatal Error: Taxonomy classifier not found at ${CLASSIFIER_PATH}."
-    echo "Please update the CLASSIFIER_PATH variable in the script with the correct path to your .qza classifier."
-    exit 1
-fi
+# The CLASSIFIER_PATH is now guaranteed to exist or the script will have exited
+# gracefully after attempting the download.
 
 # 6a. Assigning taxonomy
 QZA_TAXONOMY="${OUTPUT_DIR}/12_taxonomy.qza"

@@ -1,0 +1,12 @@
+# ignore silva-138-99-nb-classifier.qza due to size
+silva-138-99-nb-classifier.qza
+
+# folders to ignore
+demultiplexed_seq/
+fastqc_reports_trimmed/
+trimmed_sequences/
+
+
+# files to ignore
+.DS_Store
+manifest.tsv

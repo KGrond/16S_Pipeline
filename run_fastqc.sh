@@ -1,14 +1,17 @@
 #!/bin/bash
+# Exit immediately if a command exits with a non-zero status
+set -e
 
 # --- Configuration ---
 # Data Directory: Path to the directory containing the FASTQ files
-DATA_DIR="/Users/kgrond/Desktop/INBRE-DataScience/16S_pipeline/test_data/01_trimmed_sequences"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DATA_DIR="$SCRIPT_DIR/trimmed_sequences"
 
 # Set the output directory for FastQC reports
 OUTPUT_DIR="fastqc_reports_trimmed"
 
-# Define the Conda environment name
-CONDA_ENV="qiime2-16s-pipeline"
+# Define the Conda environment name (Make sure this matches your installs.sh script)
+CONDA_ENV="qiime2-2025.10" 
 
 # Define the minimum quality score threshold for truncation (Q20 is standard)
 MIN_QUALITY_SCORE=20
@@ -38,39 +41,30 @@ then
     conda activate "${CONDA_ENV}"
 
     if [ $? -ne 0 ]; then
-        echo "Error: Failed to activate Conda environment '${CONDA_ENV}'. Exiting."
+        echo "Error: Failed to activate Conda environment '${CONDA_ENV}'. Did you run installs.sh?"
         exit 1
     fi
     echo "Conda environment '${CONDA_ENV}' activated."
 else
-    echo "Error: 'conda' command not found. Cannot proceed with environment-specific installation or execution."
+    echo "Error: 'conda' command not found. Cannot proceed."
     exit 1
 fi
 
-# --- Tool Installation Checks (Runs after environment is active) ---
+# --- Tool Execution Checks (Runs after environment is active) ---
+echo "--- Verifying required tools in environment ---"
+
 if ! command -v fastqc &> /dev/null
 then
-    echo "FastQC not found in active environment. Attempting to install..."
-    conda install fastqc -y
-
-    if ! command -v fastqc &> /dev/null
-    then
-        echo "Error: FastQC installation failed or command is still not available after install. Exiting."
-        exit 1
-    fi
-    echo "FastQC installed and ready to use."
+    echo "❌ Error: **FastQC** not found in the active environment ('${CONDA_ENV}'). Please run **installs.sh**."
+    exit 1
 fi
 
 if ! command -v unzip &> /dev/null
 then
-    echo "Warning: 'unzip' command not found. Attempting to install via conda..."
-    conda install unzip -y
-    if ! command -v unzip &> /dev/null
-    then
-        echo "Error: Failed to install 'unzip'. Cannot extract FastQC reports for numerical analysis. Exiting."
-        exit 1
-    fi
+    echo "❌ Error: **unzip** utility not found in the active environment ('${CONDA_ENV}'). Please run **installs.sh**."
+    exit 1
 fi
+echo "✅ FastQC and unzip verified."
 
 # Create the output directory if it doesn't exist and clear temp file and params file
 mkdir -p "${OUTPUT_DIR}"
@@ -81,12 +75,13 @@ echo "Created output directory: ${OUTPUT_DIR}"
 # --- PHASE 1: FASTQC EXECUTION WITH RESUME/CHECKPOINT ---
 echo "--- Phase 1: Running FastQC (Resumes existing analysis) ---"
 
-# Find all .fastq files and run FastQC only if the report doesn't exist.
-find "${DATA_DIR}" -maxdepth 1 -name "*.fastq" | while read fastq_file; do
+# Find all .fastq.gz files and run FastQC only if the report doesn't exist.
+find "${DATA_DIR}" -maxdepth 1 -name "*.fastq.gz" | while read fastq_file; do
     if [ -f "${fastq_file}" ]; then
         filename=$(basename "${fastq_file}")
-        # Define the expected output zip file name
-        zip_file="${OUTPUT_DIR}/${filename%.fastq}_fastqc.zip"
+        
+        # CORRECTED: FastQC appends _fastqc.zip to the full input filename (e.g., file.fastq.gz_fastqc.zip)
+        zip_file="${OUTPUT_DIR}/${filename}_fastqc.zip"
         
         if [ -f "${zip_file}" ]; then
             echo "Skipping: ${filename} (FastQC report already exists: ${zip_file})"
@@ -104,13 +99,13 @@ echo "--- Phase 2: Truncation Length Calculation (Q${MIN_QUALITY_SCORE}) ---"
 
 # --- PHASE 2: TRUNCATION CALCULATION AND DATA EXTRACTION ---
 # Loop through all files again to calculate truncation lengths from the generated/existing reports.
-find "${DATA_DIR}" -maxdepth 1 -name "*.fastq" | while read fastq_file; do
+find "${DATA_DIR}" -maxdepth 1 -name "*.fastq.gz" | while read fastq_file; do
     if [ -f "${fastq_file}" ]; then
         filename=$(basename "${fastq_file}")
         
-        # Get the name of the FastQC results zip file and directory
-        zip_file="${OUTPUT_DIR}/${filename%.fastq}_fastqc.zip"
-        fastqc_dir="${filename%.fastq}_fastqc"
+        # CORRECTED: Get the name of the FastQC results zip file and directory (uses full filename)
+        zip_file="${OUTPUT_DIR}/${filename}_fastqc.zip"
+        fastqc_dir="${filename}_fastqc"
 
         # Check if the report file exists before proceeding to extraction
         if [ ! -f "${zip_file}" ]; then
@@ -181,6 +176,12 @@ echo "FastQC analysis complete. Generating summary and parameters file..."
 # Initialize variables to prevent issues if grep/awk finds nothing
 R1_avg=0
 R2_avg=0
+
+# Check if the temp file exists before proceeding with grep/awk
+if [ ! -f "${TRUNC_TEMP_FILE}" ]; then
+    echo "FATAL ERROR: Failed to create temporary file ${TRUNC_TEMP_FILE}. No truncation data was collected."
+    exit 1
+fi
 
 # Calculate the average truncation length for R1 (forward) reads
 R1_lengths=$(grep "R1_forward" "${TRUNC_TEMP_FILE}" | awk -F',' '{print $2}' | grep -v 'NA')
