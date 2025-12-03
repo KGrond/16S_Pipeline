@@ -5,6 +5,13 @@ This repository contains a set of scripts for preprocessing and analyzing 16S rR
 *Note: If you use a computer with the Apple Silicon M4 chip, qiime installation can be challenging. [This document](Qiime2_install_Apple%20M4.md) outlines the steps that worked for a MacBook Pro M4 running Tahoe v.26.1*
 
 
+---
+---
+
+# 🐚 Running the pipeline via Bash
+---
+---
+
 ## Prerequisites
 - QIIME2: https://library.qiime2.org/quickstart/amplicon
 - Bash Shell: The scripts are designed to be run in a Unix-like environment (Linux, macOS, or WSL).
@@ -170,9 +177,58 @@ The pipeline requires the following input files:
 
 - **Cutadapt:** https://cutadapt.readthedocs.io  
 - **FastQC:** https://www.bioinformatics.babraham.ac.uk/projects/fastqc/  
-- **QIIME 2:** https://qiime2.org  
+- **QIIME 2:** https://qiime2.org
+
 
 ---
+
+# 🐳 Running the Pipeline via Docker
+---
+
+
+This guide details how to execute the complete three-stage 16S bioinformatics pipeline using a reproducible Docker container.
+
+Prerequisites
+Docker Desktop must be installed and running on your system.
+
+Your local repository directory must contain the raw data (in demultiplexed_seq/) and the manifest.tsv file in the root.
+
+1. 🚢 Pull the Pre-Built Image (Recommended)
+To quickly get the working environment without needing to run the long installation process, pull the pre-built image from the public registry.
+
+Replace your_dockerhub_username with the actual username where the image was published.
+
+Run the pull command:
+
+```bash
+docker pull your_dockerhub_username/16s-pipeline:latest
+```
+
+2. 🚀 Run the Pipeline
+The command below executes the entire pipeline (Primer Removal, FastQC, DADA2/QIIME 2) by mounting your local data and output folders to the corresponding paths inside the Docker container.
+
+IMPORTANT: You must replace the placeholder /path/to/your/repo/16s-pipeline with the absolute path to your local project folder.
+
+Run Command
+Bash
+
+docker run -it --rm \
+    -v /path/to/your/repo/16s-pipeline/demultiplexed_seq:/app/demultiplexed_seq \
+    -v /path/to/your/repo/16s-pipeline/trimmed_sequences:/app/trimmed_sequences \
+    -v /path/to/your/repo/16s-pipeline/fastqc_reports_trimmed:/app/fastqc_reports_trimmed \
+    -v /path/to/your/repo/16s-pipeline/qiime2_analysis:/app/qiime2_analysis \
+    -v /path/to/your/repo/16s-pipeline/manifest.tsv:/app/manifest.tsv \
+    your_dockerhub_username/16s-pipeline:latest
+3. Key Outputs
+The pipeline automatically creates the necessary output directories and saves results directly back to your local machine:
+
+trimmed_sequences/: Cutadapt output files.
+
+fastqc_reports_trimmed/: FastQC reports and the calculated truncation parameters (qiime2_trunc_params.txt).
+
+qiime2_analysis/: All QIIME 2 artifacts (.qza and visualization .qzv files).
+
+
 
 **Author:** Kirsten Grond (https://github.com/KGrond)  
 **Affiliation:** Alaska INBRE Data Science Core, University of Alaska Fairbanks, USA
