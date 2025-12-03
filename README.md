@@ -19,6 +19,17 @@ This repository contains a set of scripts for preprocessing and analyzing 16S rR
 - Download Utilities: The system must have either wget or curl installed for downloading the Miniconda installer.
 - QIIME2 classifier: (see [qiime2.org/data-resources](https://library.qiime2.org/data-resources))
 
+---
+
+## Required Files
+The pipeline requires the following files:
+- **Demultiplexed paired-end FASTQ files** (`*_R1.fastq` and `*_R2.fastq`)  
+- **Metadata file** (`metadata.csv`)  
+- **QIIME 2 manifest file** (`manifest.tsv`)  
+- **Pre-trained Naive Bayes classifier** (`.qza` file, e.g., SILVA 138)  
+---
+
+
 ## 🧬 Pipeline Overview
 
 The pipeline executes in the following four sequential steps. All tools are installed and run from the single shared Conda environment: qiime2-amplicon-2025.7-test.
@@ -53,13 +64,46 @@ The pipeline executes in the following four sequential steps. All tools are inst
 
 ---
 
+## Recommended Directory Structure
+project_root/
+├── remove_primers.sh           # 1. Script for primer removal (Cutadapt)
+├── run_fastqc.sh               # 2. Script for quality control and DADA2 parameter calculation
+├── qiime2_pipeline.sh          # 3. Main script for QIIME 2 analysis
+├── sample-metadata.tsv         # REQUIRED: QIIME 2 metadata file for diversity
+├── silva-138-99-nb-classifier.qza
+│
+├── demultiplexed_seq/          # INPUT_DIR for Script 1 (Raw Data)
+│   ├── R1/
+│   │   ├── sampleA_R1.fastq.gz
+│   │   └── (etc...)
+│   └── R2/
+│       ├── sampleA_R2.fastq.gz
+│       └── (etc...)
+│
+├── trimmed_sequences/          # OUTPUT_DIR for Script 1 / INPUT_DIR for Scripts 2 & 3
+│   ├── sampleA_R1_trimmed.fastq.gz
+│   └── (etc...)
+│
+├── fastqc_reports_trimmed/     # OUTPUT_DIR for Script 2 (QC & DADA2 parameters)
+│   ├── sampleA_R1_trimmed_fastqc.zip
+│   └── qiime2_trunc_params.txt # Contains R1_AVG and R2_AVG
+│
+└── qiime2_analysis/            # OUTPUT_DIR for Script 3 (QIIME 2 Artifacts)
+    ├── 01_demultiplexed_seqs.qza
+    ├── 03_feature_table.qza
+    ├── (etc... all QZA/QZV files)
+    └── diversity-core-metrics-phylogenetic/
+        └── (Final diversity analysis output)
+
+
+
 ## 1. 🛠️ Software Installs ([installs.sh](installs.sh))
 
 **Purpose**
 Activates the conda environment, and installs all dependencies.
 
 **Key Features:**  
-- Activates a Conda environment (`qiime2-amplicon-2025.7`) to install the necessary dependencies in.  
+- Activates a Conda environment (`qiime2-amplicon-2025.10`) to install the necessary dependencies in.  
 - Checks for existing dependencies, and if missing installs **Cutadapt** and **FastQC**.
 - Tests the installation of dependencies. 
 
@@ -72,7 +116,7 @@ Activates the conda environment, and installs all dependencies.
 Removes 16S V4 region primers from paired-end FASTQ files using **Cutadapt**.  
 
 **Key Features:**  
-- Activates a dedicated Conda environment (`qiime2-amplicon-2025.7`) and installs dependencies if missing.  
+- Activates a dedicated Conda environment (`qiime2-amplicon-2025.10`) and installs dependencies if missing.  
 - Removes both forward (515F) and reverse (806R) primers.  
 - Saves trimmed FASTQ files to a specified output directory.  
 
@@ -107,10 +151,10 @@ Performs quality assessment of trimmed sequences using **FastQC** and calculates
 ## 4. 🔍 QIIME 2 Core Analysis ([qiime2_pipeline.sh](qiime2_pipeline.sh))
 
 **Purpose:**  
-Processes the trimmed sequences in **QIIME 2** to generate feature tables, representative sequences, phylogenetic trees, and taxonomy assignments.  
+Processes the trimmed sequences in **QIIME 2** to generate feature tables, representative sequences, phylogenetic trees, and taxonomy assignments. In addition, we included exploratory analyses including alpha and beta diversity visualizations and taxonomic barplots. 
 
 **Key Features:**  
-- Activates a dedicated Conda environment (`qiime2-amplicon-2025.7`).  
+- Activates a dedicated Conda environment (`qiime2-amplicon-2025.10`).  
 - Imports paired-end sequences into QIIME 2 format.  
 - Performs DADA2 denoising using truncation lengths from ([`run_fastqc.sh`](run_fastqc.sh)).  
 - Generates feature table and representative sequence summaries.  
@@ -151,16 +195,6 @@ To ensure the pipeline runs correctly, execute the scripts in the following orde
    bash qiime2_pipeline.sh
    ```
 
----
-
-## Required Input Files
-
-The pipeline requires the following input files:
-
-- **Demultiplexed paired-end FASTQ files** (`*_R1.fastq` and `*_R2.fastq`)  
-- **Metadata file** (`metadata.csv`)  
-- **QIIME 2 manifest file** (`manifest.tsv`)  
-- **Pre-trained Naive Bayes classifier** (`.qza` file, e.g., SILVA 138)  
 
 ---
 
