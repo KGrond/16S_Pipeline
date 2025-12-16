@@ -64,36 +64,56 @@ The pipeline executes in the following four sequential steps. All tools are inst
 
 ---
 
-## Recommended Directory Structure
+## 📂 Recommended Directory Structure
+
+This project uses three main Bash scripts to process 16S amplicon sequencing data from raw FASTQ files through primer trimming, quality control, and final QIIME 2 analysis.
+
+The structure below shows the required input locations and the generated output directories for a successful pipeline run. The entire analysis is designed to be executed from the project_root/ directory.
+
+```bash
 project_root/
-├── remove_primers.sh           # 1. Script for primer removal (Cutadapt)
-├── run_fastqc.sh               # 2. Script for quality control and DADA2 parameter calculation
-├── qiime2_pipeline.sh          # 3. Main script for QIIME 2 analysis
-├── sample-metadata.tsv         # REQUIRED: QIIME 2 metadata file for diversity
-├── silva-138-99-nb-classifier.qza
-│
-├── demultiplexed_seq/          # INPUT_DIR for Script 1 (Raw Data)
-│   ├── R1/
-│   │   ├── sampleA_R1.fastq.gz
-│   │   └── (etc...)
-│   └── R2/
-│       ├── sampleA_R2.fastq.gz
-│       └── (etc...)
-│
-├── trimmed_sequences/          # OUTPUT_DIR for Script 1 / INPUT_DIR for Scripts 2 & 3
-│   ├── sampleA_R1_trimmed.fastq.gz
-│   └── (etc...)
-│
-├── fastqc_reports_trimmed/     # OUTPUT_DIR for Script 2 (QC & DADA2 parameters)
-│   ├── sampleA_R1_trimmed_fastqc.zip
-│   └── qiime2_trunc_params.txt # Contains R1_AVG and R2_AVG
-│
-└── qiime2_analysis/            # OUTPUT_DIR for Script 3 (QIIME 2 Artifacts)
-    ├── 01_demultiplexed_seqs.qza
-    ├── 03_feature_table.qza
-    ├── (etc... all QZA/QZV files)
-    └── diversity-core-metrics-phylogenetic/
-        └── (Final diversity analysis output)
+|
+|-- remove_primers.sh           # 1. Script for primer removal (Cutadapt)
+|-- run_fastqc.sh               # 2. Script for quality control and DADA2 parameter calculation
+|-- qiime2_pipeline.sh          # 3. Main script for QIIME 2 analysis
+|-- sample-metadata.tsv         # REQUIRED: QIIME 2 metadata file for diversity
+|-- silva-138-99-nb-classifier.qza 
+|
+|-- demultiplexed_seq/          # INPUT_DIR for Script 1 (Raw Data)
+|   |
+|   |-- R1/
+|   |   |-- sampleA_R1.fastq.gz
+|   |   |-- (etc...)
+|   |
+|   |-- R2/
+|   |   |-- sampleA_R2.fastq.gz
+|   |   |-- (etc...)
+|
+|-- trimmed_sequences/          # OUTPUT_DIR for Script 1 / INPUT_DIR for Scripts 2 & 3
+|   |-- sampleA_R1_trimmed.fastq.gz
+|   |-- (etc...)
+|
+|-- fastqc_reports_trimmed/     # OUTPUT_DIR for Script 2 (QC & DADA2 parameters)
+|   |-- sampleA_R1_trimmed_fastqc.zip
+|   |-- qiime2_trunc_params.txt # Contains R1_AVG and R2_AVG
+|
+|-- qiime2_analysis/            # OUTPUT_DIR for Script 3 (QIIME 2 Artifacts)
+    |-- 01_demultiplexed_seqs.qza
+    |-- 03_feature_table.qza
+    |-- (etc... all QZA/QZV files)
+    |-- diversity-core-metrics-phylogenetic/
+        |-- (Final diversity analysis output)
+```
+
+
+### ⚠️ Critical File Cautions
+
+| File/Directory | Location Requirement | Purpose |
+| :--- | :--- | :--- |
+| sample-metadata.tsv | MUST be in `project_root/` | Mandatory metadata file for QIIME 2 diversity analysis (Step 7). |
+| silva-138-99-nb-classifier.qza | MUST be in `project_root/` | The taxonomic classifier (Script 3). (The script attempts to download this if missing). |
+| qiime2_trunc_params.txt | Generated in **`fastqc_reports_trimmed/` | Contains the calculated R1\_AVG and R2\_AVG. Must be present before running Script 3. |
+| Raw FASTQ Files | MUST be in `demultiplexed_seq/R1/` and `demultiplexed_seq/R2/` | Primer removal (Script 1) will fail if files are not nested in these R1/R2 folders. |
 
 
 

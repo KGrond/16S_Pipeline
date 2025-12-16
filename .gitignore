@@ -2,12 +2,19 @@
 silva-138-99-nb-classifier.qza
 
 # folders to ignore
-demultiplexed_seq/
 fastqc_reports_trimmed/
 trimmed_sequences/
-
+Docker/
+qiime2_analysis/
+AGS_demultiplexed_data/
 
 # files to ignore
 .DS_Store
-manifest.tsv
 .Rhistory
+qiime2_final.sh
+basic_qiime_workflow.sh
+basic_qiime_workflow_readme.md
+AGS_Project_manifest.tsv
+SRR_Acc_List.txt
+SraRunTable.csv
+AGS_Project_metadata.tsv
