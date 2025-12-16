@@ -7,6 +7,8 @@ trimmed_sequences/
 Docker/
 qiime2_analysis/
 AGS_demultiplexed_data/
+AGS_Example/
+y
 
 # files to ignore
 .DS_Store
