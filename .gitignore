@@ -20,3 +20,4 @@ AGS_Project_manifest.tsv
 SRR_Acc_List.txt
 SraRunTable.csv
 AGS_Project_metadata.tsv
+qiime2_test.sh
